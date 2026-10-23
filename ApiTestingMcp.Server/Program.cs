@@ -35,6 +35,16 @@ builder.Services
 
 var app = builder.Build();
 
+// Root / Status Endpoint (friendly response for browser visits)
+app.MapGet("/", () => Results.Ok(new
+{
+    status = "Online",
+    service = "ApiTestingMcp Server (.NET 9)",
+    mcpEndpoint = "/mcp",
+    swaggerEndpoint = "/swagger/v1/swagger.json",
+    description = "Model Context Protocol (MCP) API Testing Platform. Connect your AI assistant to /mcp."
+}));
+
 // MCP Endpoint
 app.MapMcp("/mcp");
 
