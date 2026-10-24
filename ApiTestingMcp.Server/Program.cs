@@ -36,15 +36,78 @@ builder.Services
 
 var app = builder.Build();
 
-// Root / Status Endpoint (friendly response for browser visits)
-app.MapGet("/", () => Results.Ok(new
+// Root Endpoint: Interactive Web Terminal for browsers, JSON for API clients
+app.MapGet("/", (HttpContext ctx, TargetApiContext targetContext) =>
 {
-    status = "Online",
-    service = "ApiTestingMcp Server (.NET 9)",
-    mcpEndpoint = "/mcp",
-    swaggerEndpoint = "/swagger/v1/swagger.json",
-    description = "Model Context Protocol (MCP) API Testing Platform. Connect your AI assistant to /mcp."
-}));
+    var accept = ctx.Request.Headers.Accept.ToString();
+    var format = ctx.Request.Query["format"].ToString();
+
+    if (string.Equals(format, "json", StringComparison.OrdinalIgnoreCase) ||
+        (accept.Contains("application/json") && !accept.Contains("text/html")))
+    {
+        return Results.Ok(new
+        {
+            status = "Online",
+            service = "ApiTestingMcp Server (.NET 9)",
+            targetBaseUrl = targetContext.BaseUrl,
+            openApiPath = targetContext.OpenApiPath,
+            mcpEndpoint = "/mcp",
+            swaggerEndpoint = "/swagger/v1/swagger.json",
+            description = "Model Context Protocol (MCP) API Testing Platform. Connect your AI assistant to /mcp."
+        });
+    }
+
+    var html = WebTerminalPage.Render(targetContext.BaseUrl, targetContext.OpenApiPath);
+    return Results.Content(html, "text/html; charset=utf-8");
+});
+
+// Interactive Web Terminal API Endpoints
+app.MapPost("/api/web/set-target", (TargetApiContext targetContext, WebSetTargetRequest req) =>
+{
+    if (string.IsNullOrWhiteSpace(req.BaseUrl))
+    {
+        return Results.BadRequest(new { error = "Base URL is required." });
+    }
+    try
+    {
+        targetContext.UpdateTarget(req.BaseUrl, req.OpenApiPath);
+        return Results.Ok(new
+        {
+            success = true,
+            targetBaseUrl = targetContext.BaseUrl,
+            openApiPath = targetContext.OpenApiPath
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+});
+
+app.MapPost("/api/web/health", async (ApiClientService client, CancellationToken ct) =>
+{
+    var status = await client.CheckHealthAsync(null, ct);
+    return Results.Ok(status);
+});
+
+app.MapPost("/api/web/discover", async (OpenApiService openApi, CancellationToken ct) =>
+{
+    var endpoints = await openApi.GetEndpointsAsync(refresh: true, ct);
+    return Results.Ok(endpoints);
+});
+
+app.MapPost("/api/web/run-tests", async (TestGeneratorService testGen, CancellationToken ct) =>
+{
+    try
+    {
+        var result = await testGen.RunTestSuiteAsync(null, null, null, ct);
+        return Results.Ok(result);
+    }
+    catch (Exception ex)
+    {
+        return Results.Ok(new { error = ex.Message });
+    }
+});
 
 // MCP Endpoint
 app.MapMcp("/mcp");
@@ -282,6 +345,7 @@ app.Run();
 public record UserDto(int Id, string Name, string Email);
 public record UserCreateModel(string? Name, string? Email);
 public record LoginRequestDto(string? Email, string? Password);
+public record WebSetTargetRequest(string? BaseUrl, string? OpenApiPath);
 
 // Preserved initial test tool
 [McpServerToolType]
