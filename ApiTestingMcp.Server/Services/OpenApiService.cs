@@ -8,7 +8,7 @@ namespace ApiTestingMcp.Server.Services;
 public class OpenApiService
 {
     private readonly HttpClient _httpClient;
-    private readonly TargetApiOptions _options;
+    private readonly TargetApiContext _targetContext;
     private readonly ILogger<OpenApiService> _logger;
 
     private readonly SemaphoreSlim _semaphore = new(1, 1);
@@ -23,25 +23,35 @@ public class OpenApiService
 
     public OpenApiService(
         HttpClient httpClient,
-        IOptions<TargetApiOptions> options,
+        TargetApiContext targetContext,
         ILogger<OpenApiService> logger)
     {
         _httpClient = httpClient;
-        _options = options.Value;
+        _targetContext = targetContext;
         _logger = logger;
 
-        if (string.IsNullOrWhiteSpace(_options.BaseUrl))
-        {
-            throw new InvalidOperationException("TargetApi:BaseUrl is not configured.");
-        }
+        _targetContext.OnTargetChanged += ClearCache;
 
-        if (Uri.TryCreate(_options.BaseUrl, UriKind.Absolute, out var baseUri))
+        if (_targetContext.TimeoutSeconds > 0)
         {
-            _httpClient.BaseAddress = baseUri;
+            _httpClient.Timeout = TimeSpan.FromSeconds(_targetContext.TimeoutSeconds);
         }
-        if (_options.TimeoutSeconds > 0)
+    }
+
+    public void ClearCache()
+    {
+        _semaphore.Wait();
+        try
         {
-            _httpClient.Timeout = TimeSpan.FromSeconds(_options.TimeoutSeconds);
+            _cachedRawDoc?.Dispose();
+            _cachedRawDoc = null;
+            _cachedEndpoints = null;
+            _lastFetchedAt = null;
+            _logger.LogInformation("OpenApiService cache cleared due to target API change.");
+        }
+        finally
+        {
+            _semaphore.Release();
         }
     }
 
@@ -155,21 +165,22 @@ public class OpenApiService
     private async Task<JsonDocument> DownloadOpenApiDocumentAsync(CancellationToken cancellationToken)
     {
         var candidatePaths = new List<string>();
-        if (!string.IsNullOrWhiteSpace(_options.OpenApiPath))
+        if (!string.IsNullOrWhiteSpace(_targetContext.OpenApiPath))
         {
-            candidatePaths.Add(_options.OpenApiPath);
+            candidatePaths.Add(_targetContext.OpenApiPath);
         }
         candidatePaths.Add("/swagger/v1/swagger.json");
         candidatePaths.Add("/openapi/v1.json");
         candidatePaths.Add("/swagger.json");
 
         string? lastError = null;
+        var baseUri = new Uri(_targetContext.BaseUrl);
 
         foreach (var path in candidatePaths.Distinct(StringComparer.OrdinalIgnoreCase))
         {
             try
             {
-                var uri = new Uri(_httpClient.BaseAddress!, path.TrimStart('/'));
+                var uri = new Uri(baseUri, path.TrimStart('/'));
                 _logger.LogInformation("Attempting to fetch OpenAPI document from {Uri}", uri);
 
                 var response = await _httpClient.GetAsync(uri, cancellationToken);
@@ -189,7 +200,7 @@ public class OpenApiService
         }
 
         throw new InvalidOperationException(
-            $"Failed to retrieve OpenAPI document from target API at '{_options.BaseUrl}'. Last error: {lastError}");
+            $"Failed to retrieve OpenAPI document from target API at '{_targetContext.BaseUrl}'. Last error: {lastError}");
     }
 
     private List<EndpointDefinition> ParseOpenApiDocument(JsonDocument doc)

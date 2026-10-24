@@ -10,6 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Configuration
 builder.Services.Configure<TargetApiOptions>(builder.Configuration.GetSection(TargetApiOptions.SectionName));
+builder.Services.AddSingleton<TargetApiContext>();
 
 // Services
 builder.Services.AddSingleton<AuthManagerService>();

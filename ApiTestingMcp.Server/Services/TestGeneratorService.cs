@@ -12,20 +12,20 @@ public class TestGeneratorService
     private readonly OpenApiService _openApiService;
     private readonly ApiClientService _apiClient;
     private readonly ResponseValidatorService _validator;
-    private readonly TargetApiOptions _options;
+    private readonly TargetApiContext _targetContext;
     private readonly ILogger<TestGeneratorService> _logger;
 
     public TestGeneratorService(
         OpenApiService openApiService,
         ApiClientService apiClient,
         ResponseValidatorService validator,
-        IOptions<TargetApiOptions> options,
+        TargetApiContext targetContext,
         ILogger<TestGeneratorService> logger)
     {
         _openApiService = openApiService;
         _apiClient = apiClient;
         _validator = validator;
-        _options = options.Value;
+        _targetContext = targetContext;
         _logger = logger;
     }
 
@@ -238,7 +238,7 @@ public class TestGeneratorService
         var suiteResult = new TestSuiteResult
         {
             SuiteName = string.IsNullOrEmpty(endpoint) ? "Automated API Test Suite" : $"Test Suite for {endpoint}",
-            TargetApiBaseUrl = _options.BaseUrl,
+            TargetApiBaseUrl = _targetContext.BaseUrl,
             ExecutedAt = DateTimeOffset.UtcNow,
             TotalTests = testList.Count
         };

@@ -10,7 +10,7 @@ namespace ApiTestingMcp.Server.Services;
 public class ApiClientService
 {
     private readonly HttpClient _httpClient;
-    private readonly TargetApiOptions _options;
+    private readonly TargetApiContext _targetContext;
     private readonly AuthManagerService _authManager;
     private readonly ILogger<ApiClientService> _logger;
 
@@ -21,46 +21,35 @@ public class ApiClientService
 
     public ApiClientService(
         HttpClient httpClient,
-        IOptions<TargetApiOptions> options,
+        TargetApiContext targetContext,
         AuthManagerService authManager,
         ILogger<ApiClientService> logger)
     {
         _httpClient = httpClient;
-        _options = options.Value;
+        _targetContext = targetContext;
         _authManager = authManager;
         _logger = logger;
 
-        if (string.IsNullOrWhiteSpace(_options.BaseUrl))
+        if (_targetContext.TimeoutSeconds > 0)
         {
-            throw new InvalidOperationException("TargetApi:BaseUrl is not configured.");
-        }
-
-        if (!Uri.TryCreate(_options.BaseUrl, UriKind.Absolute, out var baseUri) ||
-            (baseUri.Scheme != Uri.UriSchemeHttp && baseUri.Scheme != Uri.UriSchemeHttps))
-        {
-            throw new InvalidOperationException($"TargetApi:BaseUrl '{_options.BaseUrl}' is not a valid absolute HTTP/HTTPS URL.");
-        }
-
-        _httpClient.BaseAddress = baseUri;
-        if (_options.TimeoutSeconds > 0)
-        {
-            _httpClient.Timeout = TimeSpan.FromSeconds(_options.TimeoutSeconds);
+            _httpClient.Timeout = TimeSpan.FromSeconds(_targetContext.TimeoutSeconds);
         }
     }
 
-    public async Task<ApiHealthStatus> CheckHealthAsync(CancellationToken cancellationToken = default)
+    public async Task<ApiHealthStatus> CheckHealthAsync(string? overrideUrl = null, CancellationToken cancellationToken = default)
     {
-        var baseUri = _httpClient.BaseAddress;
-        if (baseUri == null)
+        var targetUrl = !string.IsNullOrWhiteSpace(overrideUrl) ? overrideUrl.Trim() : _targetContext.BaseUrl;
+        if (!Uri.TryCreate(targetUrl, UriKind.Absolute, out var baseUri) ||
+            (baseUri.Scheme != Uri.UriSchemeHttp && baseUri.Scheme != Uri.UriSchemeHttps))
         {
-            return ApiHealthStatus.Offline(_options.BaseUrl, "TargetApi:BaseUrl is not configured.");
+            return ApiHealthStatus.Offline(targetUrl, $"Target URL '{targetUrl}' is not a valid absolute HTTP/HTTPS URL.");
         }
 
         var stopwatch = Stopwatch.StartNew();
         try
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(TimeSpan.FromSeconds(Math.Min(_options.TimeoutSeconds, 5)));
+            cts.CancelAfter(TimeSpan.FromSeconds(Math.Min(_targetContext.TimeoutSeconds, 5)));
 
             using var request = new HttpRequestMessage(HttpMethod.Get, baseUri);
             using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cts.Token);
@@ -130,15 +119,16 @@ public class ApiClientService
             }
         }
 
-        var relativePathAndQuery = uriBuilder.ToString();
-        var targetUri = new Uri(_httpClient.BaseAddress!, relativePathAndQuery);
+        var relativePathAndQuery = uriBuilder.ToString().TrimStart('/');
+        var baseUri = new Uri(_targetContext.BaseUrl);
+        var targetUri = new Uri(baseUri, relativePathAndQuery);
 
         // Security check: Ensure target URL remains within configured BaseAddress origin
-        if (targetUri.Host != _httpClient.BaseAddress!.Host ||
-            targetUri.Port != _httpClient.BaseAddress.Port ||
-            targetUri.Scheme != _httpClient.BaseAddress.Scheme)
+        if (targetUri.Host != baseUri.Host ||
+            targetUri.Port != baseUri.Port ||
+            targetUri.Scheme != baseUri.Scheme)
         {
-            return ApiResponse.Failure($"Target URL '{targetUri}' escapes the configured base origin '{_httpClient.BaseAddress}'.");
+            return ApiResponse.Failure($"Target URL '{targetUri}' escapes the configured base origin '{baseUri}'.");
         }
 
         var httpRequest = new HttpRequestMessage(new HttpMethod(normalizedMethod), targetUri);
@@ -213,7 +203,7 @@ public class ApiClientService
         {
             stopwatch.Stop();
             _logger.LogError(ex, "HTTP request to {Url} timed out.", targetUri);
-            return ApiResponse.Failure($"Request timed out after {_options.TimeoutSeconds} seconds.", targetUri.ToString());
+            return ApiResponse.Failure($"Request timed out after {_targetContext.TimeoutSeconds} seconds.", targetUri.ToString());
         }
         catch (HttpRequestException ex)
         {
@@ -223,7 +213,7 @@ public class ApiClientService
             if (ex.InnerException is System.Net.Sockets.SocketException sockEx)
             {
                 return ApiResponse.Failure(
-                    $"Target API is OFFLINE: Unable to connect to '{_httpClient.BaseAddress}' ({sockEx.Message}). Ensure the target API service is started and listening.",
+                    $"Target API is OFFLINE: Unable to connect to '{baseUri}' ({sockEx.Message}). Ensure the target API service is started and listening.",
                     targetUri.ToString());
             }
 

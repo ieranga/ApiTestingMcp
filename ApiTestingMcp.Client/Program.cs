@@ -5,7 +5,7 @@ using ModelContextProtocol.Client;
 var transport = new HttpClientTransport(
     new HttpClientTransportOptions
     {
-        Endpoint = new Uri("http://localhost:3001/mcp"),
+        Endpoint = new Uri("https://apitestmcpapp.gentleglacier-67755979.southeastasia.azurecontainerapps.io/mcp"),
         TransportMode = HttpTransportMode.StreamableHttp
     });
 
@@ -26,18 +26,41 @@ foreach (var tool in tools)
 }
 Console.WriteLine();
 
+string targetToTest = args.Length > 0 && !string.IsNullOrWhiteSpace(args[0])
+    ? args[0].Trim()
+    : "https://apitestmcpapp.gentleglacier-67755979.southeastasia.azurecontainerapps.io/";
+
+var setTargetTool = tools.FirstOrDefault(t => string.Equals(t.Name, "set_target_api", StringComparison.OrdinalIgnoreCase));
 var healthCheckTool = tools.FirstOrDefault(t => string.Equals(t.Name, "check_api_health", StringComparison.OrdinalIgnoreCase));
 var listEndpointsTool = tools.FirstOrDefault(t => string.Equals(t.Name, "list_endpoints", StringComparison.OrdinalIgnoreCase));
 var generateScenariosTool = tools.FirstOrDefault(t => string.Equals(t.Name, "generate_test_scenarios", StringComparison.OrdinalIgnoreCase));
 var runTestSuiteTool = tools.FirstOrDefault(t => string.Equals(t.Name, "run_test_suite", StringComparison.OrdinalIgnoreCase));
 
 // ----------------------------------------------------
-// Step 0: Pre-Flight Health Check
+// Step 0: Dynamically Set Target API
+// ----------------------------------------------------
+if (setTargetTool != null)
+{
+    Console.WriteLine("==================================================");
+    Console.WriteLine($" [Step 0] Setting Target API: {targetToTest}");
+    Console.WriteLine("==================================================");
+
+    var setResult = await setTargetTool.InvokeAsync(new AIFunctionArguments(new Dictionary<string, object?>
+    {
+        ["baseUrl"] = targetToTest,
+        ["openApiPath"] = "/swagger/v1/swagger.json"
+    }));
+    Console.WriteLine(setResult);
+    Console.WriteLine();
+}
+
+// ----------------------------------------------------
+// Step 1: Pre-Flight Health Check
 // ----------------------------------------------------
 if (healthCheckTool != null)
 {
     Console.WriteLine("==================================================");
-    Console.WriteLine(" [Step 0] Pre-flight Check: Is Target API Online?");
+    Console.WriteLine(" [Step 1] Pre-flight Check: Is Target API Online?");
     Console.WriteLine("==================================================");
 
     var healthResult = await healthCheckTool.InvokeAsync(new AIFunctionArguments());
