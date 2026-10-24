@@ -275,7 +275,7 @@ app.MapGet("/swagger/v1/swagger.json", () =>
     return Results.Content(json, "application/json");
 });
 
-app.Run("http://localhost:3001");
+app.Run();
 
 // DTO records for sample endpoints
 public record UserDto(int Id, string Name, string Email);
