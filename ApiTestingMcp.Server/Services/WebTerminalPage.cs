@@ -115,8 +115,9 @@ public static class WebTerminalPage
       margin: 0 auto;
       padding: 1.5rem;
       display: grid;
-      grid-template-columns: 380px 1fr;
+      grid-template-columns: 420px 1fr;
       gap: 1.5rem;
+      min-width: 0;
     }
     @media (max-width: 1024px) {
       main { grid-template-columns: 1fr; }
@@ -131,6 +132,8 @@ public static class WebTerminalPage
       display: flex;
       flex-direction: column;
       gap: 1.25rem;
+      min-width: 0;
+      overflow: hidden;
     }
     .panel-title {
       font-size: 0.95rem;
@@ -397,25 +400,48 @@ public static class WebTerminalPage
       background: #020617;
       border: 1px solid #1e293b;
       border-radius: 8px;
-      padding: 1rem;
+      overflow: hidden;
       font-family: 'Fira Code', monospace;
-      font-size: 0.8rem;
-      color: #cbd5e1;
-      position: relative;
+      width: 100%;
+      max-width: 100%;
+    }
+    .config-code-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #0b1120;
+      padding: 0.45rem 0.75rem;
+      border-bottom: 1px solid #1e293b;
+    }
+    .config-filename {
+      font-size: 0.72rem;
+      color: #94a3b8;
+      font-weight: 500;
     }
     .copy-btn {
-      position: absolute;
-      top: 0.5rem;
-      right: 0.5rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
       background: #1e293b;
       border: 1px solid #334155;
       color: #94a3b8;
       font-size: 0.72rem;
-      padding: 0.25rem 0.5rem;
+      padding: 0.25rem 0.55rem;
       border-radius: 4px;
       cursor: pointer;
+      transition: all 0.2s;
     }
     .copy-btn:hover { color: white; background: #334155; }
+    .config-code-box pre {
+      padding: 0.75rem;
+      font-size: 0.74rem;
+      line-height: 1.5;
+      color: #cbd5e1;
+      white-space: pre-wrap;
+      word-break: break-all;
+      overflow-x: auto;
+      margin: 0;
+    }
   </style>
 </head>
 <body>
@@ -476,10 +502,16 @@ public static class WebTerminalPage
 
       <!-- Claude Desktop / Cursor Config Section -->
       <div class="mcp-info-box">
-        <strong>Connect AI Assistant (Claude / Cursor):</strong>
-        <p style="margin-top:0.35rem;">Use this endpoint in your MCP client config:</p>
-        <div class="config-code-box" style="margin-top:0.4rem;">
-          <button class="copy-btn" onclick="copyMcpConfig()">Copy</button>
+        <strong style="display:block; margin-bottom:0.25rem;">Connect AI Assistant (Claude / Cursor):</strong>
+        <p style="margin-bottom:0.5rem; color:var(--text-muted); font-size:0.75rem;">Use this endpoint in your MCP client config:</p>
+        <div class="config-code-box">
+          <div class="config-code-header">
+            <span class="config-filename">claude_desktop_config.json</span>
+            <button class="copy-btn" onclick="copyMcpConfig()" title="Copy configuration">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              <span id="copyBtnText">Copy</span>
+            </button>
+          </div>
           <pre id="mcpConfigSnippet">{
   "mcpServers": {
     "api-tester": {
@@ -711,9 +743,11 @@ Paste any public API or ngrok URL on the left, then click a test action.
     function copyMcpConfig() {
       const code = document.getElementById('mcpConfigSnippet').innerText;
       navigator.clipboard.writeText(code).then(() => {
-        const btn = document.querySelector('.copy-btn');
-        btn.innerText = 'Copied!';
-        setTimeout(() => btn.innerText = 'Copy', 2000);
+        const btnText = document.getElementById('copyBtnText');
+        if (btnText) {
+          btnText.innerText = 'Copied!';
+          setTimeout(() => btnText.innerText = 'Copy', 2000);
+        }
       });
     }
 
