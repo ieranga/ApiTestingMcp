@@ -442,6 +442,40 @@ public static class WebTerminalPage
       overflow-x: auto;
       margin: 0;
     }
+
+    .download-report-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: linear-gradient(135deg, rgba(6, 182, 212, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%);
+      border: 1px solid rgba(6, 182, 212, 0.4);
+      color: #38bdf8;
+      font-size: 0.76rem;
+      font-weight: 600;
+      padding: 0.35rem 0.8rem;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .download-report-btn:hover {
+      background: linear-gradient(135deg, rgba(6, 182, 212, 0.35) 0%, rgba(59, 130, 246, 0.35) 100%);
+      border-color: #06b6d4;
+      color: #ffffff;
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
+      transform: translateY(-1px);
+    }
+    .report-action-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      background: #090e1a;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 0.65rem 0.9rem;
+      margin-bottom: 1.25rem;
+    }
   </style>
 </head>
 <body>
@@ -498,6 +532,10 @@ public static class WebTerminalPage
         <button id="btnTestSuite" class="btn btn-primary" onclick="runTestSuite()">
           🧪 Generate & Run Test Suite
         </button>
+        <button id="btnDownloadPanel" class="btn btn-secondary" style="display:none; border-color:#06b6d4; color:#38bdf8; background:rgba(6,182,212,0.1);" onclick="downloadReport('md')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          <span>Download Test Report (.md)</span>
+        </button>
       </div>
 
       <!-- Claude Desktop / Cursor Config Section -->
@@ -537,9 +575,17 @@ public static class WebTerminalPage
         </div>
       </div>
 
-      <div class="terminal-tabs">
-        <button class="tab-btn active" id="tabTerminal" onclick="switchTab('terminal')">Live Console</button>
-        <button class="tab-btn" id="tabReport" onclick="switchTab('report')">Structured Report</button>
+      <div class="terminal-tabs" style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex;">
+          <button class="tab-btn active" id="tabTerminal" onclick="switchTab('terminal')">Live Console</button>
+          <button class="tab-btn" id="tabReport" onclick="switchTab('report')">Structured Report</button>
+        </div>
+        <div style="padding-right:0.75rem;">
+          <button id="btnDownloadReport" class="download-report-btn" style="display:none;" onclick="downloadReport('md')" title="Export full report as Markdown">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <span>Download Report (.md)</span>
+          </button>
+        </div>
       </div>
 
       <div id="terminalBody" class="terminal-body">
@@ -662,6 +708,9 @@ Paste any public API or ngrok URL on the left, then click a test action.
       }
     }
 
+    let lastSuiteResult = null;
+    let lastReportMarkdown = "";
+
     async function runTestSuite() {
       setButtonsDisabled(true);
       logToTerminal('run_test_suite --target ' + baseUrlInput.value, true);
@@ -677,6 +726,9 @@ Paste any public API or ngrok URL on the left, then click a test action.
           return;
         }
 
+        lastSuiteResult = result;
+        lastReportMarkdown = result.summaryReport || '';
+
         logToTerminal(`\n\x1b[36m==================================================\x1b[0m`);
         logToTerminal(` Test Suite Completed: ${result.passedCount}/${result.totalTests} Passed (${result.totalDurationMs}ms)`);
         logToTerminal(` Overall Status: ${result.overallStatus}`);
@@ -686,6 +738,15 @@ Paste any public API or ngrok URL on the left, then click a test action.
           logToTerminal(result.summaryReport);
           renderMarkdownReport(result.summaryReport);
         }
+
+        // Reveal the download buttons on the control panel and terminal tabs
+        const btnPanel = document.getElementById('btnDownloadPanel');
+        if (btnPanel) btnPanel.style.display = 'flex';
+
+        const btnTab = document.getElementById('btnDownloadReport');
+        if (btnTab) btnTab.style.display = 'inline-flex';
+
+        logToTerminal(`\n\x1b[32m✔ Structured report ready! Use the 'Download Report' button to save as .md or .json.\x1b[0m`);
       } catch (err) {
         logToTerminal(`✖ [ERROR] Suite run failed: ${err.message}`);
       } finally {
@@ -693,9 +754,54 @@ Paste any public API or ngrok URL on the left, then click a test action.
       }
     }
 
+    function downloadReport(format = 'md') {
+      if (!lastReportMarkdown && !lastSuiteResult) {
+        alert('No report available to download. Please run the test suite first.');
+        return;
+      }
+      const isJson = format === 'json';
+      const content = isJson ? JSON.stringify(lastSuiteResult, null, 2) : (lastReportMarkdown || JSON.stringify(lastSuiteResult, null, 2));
+      const ext = isJson ? 'json' : 'md';
+      const mime = isJson ? 'application/json;charset=utf-8' : 'text/markdown;charset=utf-8';
+      const blob = new Blob([content], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      a.href = url;
+      a.download = `api-test-report-${timestamp}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
     function renderMarkdownReport(reportMarkdown) {
       // Basic markdown table parser for structured tab
       let html = '<div style="line-height:1.7;">';
+
+      const statsText = lastSuiteResult 
+        ? `${lastSuiteResult.passedCount}/${lastSuiteResult.totalTests} Passed (${lastSuiteResult.totalDurationMs}ms)`
+        : 'Generated Report';
+
+      html += `
+        <div class="report-action-bar">
+          <div>
+            <div style="font-size:0.85rem; font-weight:600; color:#e2e8f0;">Structured Test Report</div>
+            <div style="font-size:0.75rem; color:#94a3b8;">${statsText}</div>
+          </div>
+          <div style="display:flex; gap:0.5rem;">
+            <button class="download-report-btn" onclick="downloadReport('md')" title="Download as Markdown">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              <span>Download .MD</span>
+            </button>
+            <button class="download-report-btn" onclick="downloadReport('json')" style="border-color:#3b82f6; color:#60a5fa;" title="Download as JSON">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              <span>Download .JSON</span>
+            </button>
+          </div>
+        </div>
+      `;
+
       const lines = reportMarkdown.split('\n');
       let inTable = false;
       let tableHtml = '<div class="table-container"><table>';
