@@ -48,8 +48,9 @@ public class ApiClientService
         var stopwatch = Stopwatch.StartNew();
         try
         {
+            var probeTimeout = Math.Max(_targetContext.TimeoutSeconds > 0 ? _targetContext.TimeoutSeconds : 15, 15);
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(TimeSpan.FromSeconds(Math.Min(_targetContext.TimeoutSeconds, 5)));
+            cts.CancelAfter(TimeSpan.FromSeconds(probeTimeout));
 
             using var request = new HttpRequestMessage(HttpMethod.Get, baseUri);
             using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cts.Token);
