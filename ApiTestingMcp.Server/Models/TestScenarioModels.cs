@@ -40,6 +40,7 @@ public class TestSuiteResult
     public int TotalTests { get; set; }
     public int PassedCount { get; set; }
     public int FailedCount { get; set; }
+    public string? WarmUpNote { get; set; }
     public string OverallStatus => FailedCount == 0 && TotalTests > 0 ? "PASS" : "FAIL";
     public string SummaryReport { get; set; } = string.Empty;
     public List<TestCaseExecutionResult> TestResults { get; set; } = [];

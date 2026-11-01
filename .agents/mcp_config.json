@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "api-tester": {
+      "serverUrl": "https://apitestmcpapp.gentleglacier-67755979.southeastasia.azurecontainerapps.io/mcp"
+    }
+  }
+}

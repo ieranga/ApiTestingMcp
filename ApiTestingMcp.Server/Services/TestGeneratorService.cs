@@ -246,6 +246,14 @@ public class TestGeneratorService
             TotalTests = testList.Count
         };
 
+        // ── Warm-up pre-flight ────────────────────────────────────────────────────
+        // Free-tier / sleep-mode hosts (e.g. runasp.net) can take 20–60 s to cold-start.
+        // Send a single probe request first and retry a few times before unleashing the
+        // full test suite, so tests don't all fail with status 0 (connection refused).
+        var warmUpStatus = await WarmUpTargetApiAsync(cancellationToken);
+        suiteResult.WarmUpNote = warmUpStatus;
+        // ─────────────────────────────────────────────────────────────────────────
+
         var stopwatch = Stopwatch.StartNew();
 
         foreach (var scenario in testList)
@@ -270,6 +278,81 @@ public class TestGeneratorService
         suiteResult.SummaryReport = BuildMarkdownReport(suiteResult);
 
         return suiteResult;
+    }
+
+    /// <summary>
+    /// Sends a probe GET request to the target base URL to wake up sleeping/cold-start servers.
+    /// Retries up to 3 times with 12-second waits. Returns a note string describing the outcome.
+    /// </summary>
+    /*private async Task<string?> WarmUpTargetApiAsync(CancellationToken cancellationToken)
+    {
+        const int maxAttempts = 3;
+        const int delaySeconds = 12;
+
+        var baseUrl = _targetContext.BaseUrl;
+        _logger.LogInformation("[WarmUp] Starting pre-flight probe for {BaseUrl}", baseUrl);
+
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            var health = await _apiClient.CheckHealthAsync(baseUrl, cancellationToken);
+
+            if (health.IsOnline)
+            {
+                _logger.LogInformation("[WarmUp] Probe attempt {Attempt}/{Max} succeeded: HTTP {Status}", attempt, maxAttempts, health.HttpStatusCode);
+                return attempt > 1
+                    ? $"⚡ Target API was sleeping — woke up after {attempt} warm-up probe(s) (HTTP {health.HttpStatusCode})."
+                    : null; // No note needed if first attempt succeeded immediately
+            }
+
+            _logger.LogWarning("[WarmUp] Probe attempt {Attempt}/{Max} failed: {Message}", attempt, maxAttempts, health.Message);
+
+            if (attempt < maxAttempts && !cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogInformation("[WarmUp] Waiting {Delay}s before next probe...", delaySeconds);
+                await Task.Delay(TimeSpan.FromSeconds(delaySeconds), cancellationToken);
+            }
+        }
+
+        _logger.LogWarning("[WarmUp] All {Max} warm-up probes failed for {BaseUrl}", maxAttempts, baseUrl);
+        return $"⚠️ Pre-flight warm-up failed after {maxAttempts} attempts. " +
+               "Target API may be offline. Test results below reflect connection failures (status 0).";
+    }*/
+
+    private async Task<string?> WarmUpTargetApiAsync(CancellationToken cancellationToken)
+    {
+        const int maxAttempts = 3;
+        const int delaySeconds = 12;
+
+        var baseUrl = _targetContext.BaseUrl;
+        _logger.LogInformation("[WarmUp] Starting pre-flight probe for {BaseUrl}", baseUrl);
+
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            var health = await _apiClient.CheckHealthAsync(baseUrl, cancellationToken);
+
+            if (health.IsOnline)
+            {
+                // Changed health.HttpStatusCode to health.StatusCode
+                _logger.LogInformation("[WarmUp] Probe attempt {Attempt}/{Max} succeeded: HTTP {Status}", attempt, maxAttempts, health.StatusCode);
+
+                return attempt > 1
+                    // Fixed the incomplete {health.} to {health.StatusCode}
+                    ? $"⚡ Target API was sleeping — woke up after {attempt} warm-up probe(s) (HTTP {health.StatusCode})."
+                    : null;
+            }
+
+            _logger.LogWarning("[WarmUp] Probe attempt {Attempt}/{Max} failed: {Message}", attempt, maxAttempts, health.Message);
+
+            if (attempt < maxAttempts && !cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogInformation("[WarmUp] Waiting {Delay}s before next probe...", delaySeconds);
+                await Task.Delay(TimeSpan.FromSeconds(delaySeconds), cancellationToken);
+            }
+        }
+
+        _logger.LogWarning("[WarmUp] All {Max} warm-up probes failed for {BaseUrl}", maxAttempts, baseUrl);
+        return $"⚠️ Pre-flight warm-up failed after {maxAttempts} attempts. " +
+               "Target API may be offline. Test results below reflect connection failures (status 0).";
     }
 
     private async Task<TestCaseExecutionResult> ExecuteScenarioAsync(
@@ -380,6 +463,21 @@ public class TestGeneratorService
         sb.AppendLine($"**Target API:** `{suite.TargetApiBaseUrl}`  ");
         sb.AppendLine($"**Overall Status:** **{suite.OverallStatus}** ({suite.PassedCount}/{suite.TotalTests} Passed)  ");
         sb.AppendLine($"**Duration:** {suite.TotalDurationMs}ms | **Executed:** {suite.ExecutedAt:yyyy-MM-dd HH:mm:ss UTC}\n");
+
+        // Show warm-up note if present (cold-start or offline warning)
+        if (!string.IsNullOrEmpty(suite.WarmUpNote))
+        {
+            sb.AppendLine($"> {suite.WarmUpNote}\n");
+        }
+
+        // Detect all-offline scenario: every result has status 0
+        var allOffline = suite.TestResults.Count > 0 && suite.TestResults.All(r => r.ActualStatusCode == 0);
+        if (allOffline)
+        {
+            sb.AppendLine("> ⚠️ **All requests failed to connect (HTTP status 0).** The target API server could not be reached.");
+            sb.AppendLine("> Possible causes: server is offline, cold-start timeout exceeded, or network/firewall blocking outbound connections.");
+            sb.AppendLine("> Please verify the target API is running and reachable, then re-run the test suite.\n");
+        }
 
         sb.AppendLine("| ID | Test Scenario | Category | Method | Status | Expected | Actual | Result |");
         sb.AppendLine("|:---|:---|:---|:---|:---|:---|:---|:---|");
