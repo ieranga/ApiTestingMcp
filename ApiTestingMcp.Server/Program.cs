@@ -15,8 +15,16 @@ builder.Services.AddSingleton<TargetApiContext>();
 // Services
 builder.Services.AddSingleton<AuthManagerService>();
 builder.Services.AddSingleton<ResponseValidatorService>();
-builder.Services.AddHttpClient<ApiClientService>();
-builder.Services.AddHttpClient<OpenApiService>();
+builder.Services.AddHttpClient<ApiClientService>()
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+    {
+        ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+    });
+builder.Services.AddHttpClient<OpenApiService>()
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+    {
+        ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+    });
 builder.Services.AddTransient<TestGeneratorService>();
 
 builder.Services.AddTransient<ApiTestingTools>();

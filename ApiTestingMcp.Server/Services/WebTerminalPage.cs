@@ -865,7 +865,8 @@ Paste any public API or ngrok URL on the left, then click a test action.
         snippet.innerText = `{\n  "mcpServers": {\n    "api-tester": {\n      "url": "${currentOrigin}/mcp"\n    }\n  }\n}`;
       }
       const targetInput = document.getElementById('targetUrl');
-      if (targetInput && (!targetInput.value || targetInput.value.includes('localhost'))) {
+      const isCloudHost = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+      if (targetInput && (!targetInput.value || (isCloudHost && targetInput.value.includes('localhost')))) {
         targetInput.value = currentOrigin + '/';
       }
     });
