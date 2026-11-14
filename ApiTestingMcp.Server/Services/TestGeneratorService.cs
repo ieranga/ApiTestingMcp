@@ -284,7 +284,7 @@ public class TestGeneratorService
     /// Sends a probe GET request to the target base URL to wake up sleeping/cold-start servers.
     /// Retries up to 3 times with 12-second waits. Returns a note string describing the outcome.
     /// </summary>
-    /*private async Task<string?> WarmUpTargetApiAsync(CancellationToken cancellationToken)
+    private async Task<string?> WarmUpTargetApiAsync(CancellationToken cancellationToken)
     {
         const int maxAttempts = 3;
         const int delaySeconds = 12;
@@ -298,9 +298,9 @@ public class TestGeneratorService
 
             if (health.IsOnline)
             {
-                _logger.LogInformation("[WarmUp] Probe attempt {Attempt}/{Max} succeeded: HTTP {Status}", attempt, maxAttempts, health.HttpStatusCode);
+                _logger.LogInformation("[WarmUp] Probe attempt {Attempt}/{Max} succeeded: HTTP {Status}", attempt, maxAttempts, health.StatusCode);
                 return attempt > 1
-                    ? $"⚡ Target API was sleeping — woke up after {attempt} warm-up probe(s) (HTTP {health.HttpStatusCode})."
+                    ? $"⚡ Target API was sleeping — woke up after {attempt} warm-up probe(s) (HTTP {health.StatusCode})."
                     : null; // No note needed if first attempt succeeded immediately
             }
 
@@ -316,44 +316,9 @@ public class TestGeneratorService
         _logger.LogWarning("[WarmUp] All {Max} warm-up probes failed for {BaseUrl}", maxAttempts, baseUrl);
         return $"⚠️ Pre-flight warm-up failed after {maxAttempts} attempts. " +
                "Target API may be offline. Test results below reflect connection failures (status 0).";
-    }*/
-
-    private async Task<string?> WarmUpTargetApiAsync(CancellationToken cancellationToken)
-    {
-        const int maxAttempts = 3;
-        const int delaySeconds = 12;
-
-        var baseUrl = _targetContext.BaseUrl;
-        _logger.LogInformation("[WarmUp] Starting pre-flight probe for {BaseUrl}", baseUrl);
-
-        for (int attempt = 1; attempt <= maxAttempts; attempt++)
-        {
-            var health = await _apiClient.CheckHealthAsync(baseUrl, cancellationToken);
-
-            if (health.IsOnline)
-            {
-                // Changed health.HttpStatusCode to health.StatusCode
-                _logger.LogInformation("[WarmUp] Probe attempt {Attempt}/{Max} succeeded: HTTP {Status}", attempt, maxAttempts, health.StatusCode);
-
-                return attempt > 1
-                    // Fixed the incomplete {health.} to {health.StatusCode}
-                    ? $"⚡ Target API was sleeping — woke up after {attempt} warm-up probe(s) (HTTP {health.StatusCode})."
-                    : null;
-            }
-
-            _logger.LogWarning("[WarmUp] Probe attempt {Attempt}/{Max} failed: {Message}", attempt, maxAttempts, health.Message);
-
-            if (attempt < maxAttempts && !cancellationToken.IsCancellationRequested)
-            {
-                _logger.LogInformation("[WarmUp] Waiting {Delay}s before next probe...", delaySeconds);
-                await Task.Delay(TimeSpan.FromSeconds(delaySeconds), cancellationToken);
-            }
-        }
-
-        _logger.LogWarning("[WarmUp] All {Max} warm-up probes failed for {BaseUrl}", maxAttempts, baseUrl);
-        return $"⚠️ Pre-flight warm-up failed after {maxAttempts} attempts. " +
-               "Target API may be offline. Test results below reflect connection failures (status 0).";
     }
+
+    
 
     private async Task<TestCaseExecutionResult> ExecuteScenarioAsync(
         TestScenario scenario,
