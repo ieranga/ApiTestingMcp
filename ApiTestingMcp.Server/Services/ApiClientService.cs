@@ -248,11 +248,13 @@ public class ApiClientService
 
         var endpoint = request.Endpoint.Trim();
 
-        // Reject absolute URLs
+        // Reject absolute or scheme-qualified URLs (e.g. 'http://...', 'https://...', '//...', 'ftp://...')
         if (endpoint.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
             endpoint.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
             endpoint.StartsWith("//") ||
-            (Uri.TryCreate(endpoint, UriKind.Absolute, out var parsedAbsolute) && !string.IsNullOrEmpty(parsedAbsolute.Scheme)))
+            (Uri.TryCreate(endpoint, UriKind.Absolute, out var parsedAbsolute) && 
+             !string.Equals(parsedAbsolute.Scheme, Uri.UriSchemeFile, StringComparison.OrdinalIgnoreCase) && 
+             !string.IsNullOrEmpty(parsedAbsolute.Scheme)))
         {
             return "Absolute or protocol-relative URLs are not permitted. Only relative paths (e.g. '/api/users') are accepted.";
         }
