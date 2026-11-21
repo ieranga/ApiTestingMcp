@@ -70,7 +70,7 @@ app.MapGet("/", (HttpContext ctx, TargetApiContext targetContext) =>
 });
 
 // Interactive Web Terminal API Endpoints
-app.MapPost("/api/web/set-target", (TargetApiContext targetContext, WebSetTargetRequest req) =>
+app.MapPost("/api/web/set-target", (TargetApiContext targetContext, AuthManagerService authManager, WebSetTargetRequest req) =>
 {
     if (string.IsNullOrWhiteSpace(req.BaseUrl))
     {
@@ -79,11 +79,28 @@ app.MapPost("/api/web/set-target", (TargetApiContext targetContext, WebSetTarget
     try
     {
         targetContext.UpdateTarget(req.BaseUrl, req.OpenApiPath);
+
+        if (req.UseAuth.HasValue)
+        {
+            if (req.UseAuth.Value && !string.IsNullOrWhiteSpace(req.Token))
+            {
+                authManager.SetBearerToken(req.Token.Trim(), "default");
+                authManager.SetActiveProfile("default");
+            }
+            else
+            {
+                authManager.ClearAuth("default");
+            }
+        }
+
+        var authStatus = authManager.GetStatus();
+
         return Results.Ok(new
         {
             success = true,
             targetBaseUrl = targetContext.BaseUrl,
-            openApiPath = targetContext.OpenApiPath
+            openApiPath = targetContext.OpenApiPath,
+            isAuthenticated = authStatus.IsAuthenticated
         });
     }
     catch (Exception ex)
@@ -353,7 +370,7 @@ app.Run();
 public record UserDto(int Id, string Name, string Email);
 public record UserCreateModel(string? Name, string? Email);
 public record LoginRequestDto(string? Email, string? Password);
-public record WebSetTargetRequest(string? BaseUrl, string? OpenApiPath);
+public record WebSetTargetRequest(string? BaseUrl, string? OpenApiPath, bool? UseAuth = null, string? Token = null);
 
 // Preserved initial test tool
 [McpServerToolType]

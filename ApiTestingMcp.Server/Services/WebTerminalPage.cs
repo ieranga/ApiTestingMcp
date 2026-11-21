@@ -476,6 +476,67 @@ public static class WebTerminalPage
       padding: 0.65rem 0.9rem;
       margin-bottom: 1.25rem;
     }
+
+    /* Auth Switch / Token Input Styling */
+    .auth-toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+      padding: 0.35rem 0;
+    }
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 40px;
+      height: 22px;
+    }
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #374151;
+      transition: .3s;
+      border-radius: 22px;
+      border: 1px solid #4b5563;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 14px;
+      width: 14px;
+      left: 3px;
+      bottom: 3px;
+      background-color: #94a3b8;
+      transition: .3s;
+      border-radius: 50%;
+    }
+    input:checked + .slider {
+      background-color: #06b6d4;
+      border-color: #22d3ee;
+      box-shadow: 0 0 8px rgba(6, 182, 212, 0.4);
+    }
+    input:checked + .slider:before {
+      transform: translateX(18px);
+      background-color: #ffffff;
+    }
+    .auth-token-container {
+      margin-top: 0.4rem;
+      display: none;
+      animation: fadeIn 0.2s ease-in-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
   </style>
 </head>
 <body>
@@ -511,6 +572,29 @@ public static class WebTerminalPage
       <div class="form-group">
         <label class="form-label" for="openApiPath">OpenAPI / Swagger Path</label>
         <input type="text" id="openApiPath" class="input-field" placeholder="/swagger/v1/swagger.json" value="{{currentOpenApiPath}}">
+      </div>
+
+      <!-- Authentication Toggle & Bearer Token Input -->
+      <div class="form-group" style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 8px; border: 1px solid #1e293b;">
+        <div class="auth-toggle-row">
+          <div>
+            <div style="font-size:0.82rem; font-weight:600; color:var(--text-main); display:flex; align-items:center; gap:0.4rem;">
+              <span>🔑 Authorization</span>
+            </div>
+            <div style="font-size:0.72rem; color:var(--text-muted);">Use Bearer access token for protected endpoints</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="authToggle" onchange="toggleAuthInput()">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div id="authTokenArea" class="auth-token-container">
+          <label class="form-label" for="authToken" style="margin-bottom:0.25rem; display:block;">Access Token (Bearer / JWT)</label>
+          <textarea id="authToken" class="input-field" rows="2" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9... (or paste raw token)" style="resize:vertical; font-size:0.78rem;"></textarea>
+          <div style="font-size:0.7rem; color:var(--accent-cyan); margin-top:0.3rem;">
+            ✓ Token will be attached as Authorization: Bearer &lt;token&gt;
+          </div>
+        </div>
       </div>
 
       <div class="form-group">
@@ -608,8 +692,22 @@ Paste any public API or ngrok URL on the left, then click a test action.
   <script>
     const baseUrlInput = document.getElementById('targetUrl');
     const openApiPathInput = document.getElementById('openApiPath');
+    const authToggle = document.getElementById('authToggle');
+    const authTokenInput = document.getElementById('authToken');
+    const authTokenArea = document.getElementById('authTokenArea');
     const terminal = document.getElementById('terminalBody');
     const reportContainer = document.getElementById('reportContainer');
+
+    function toggleAuthInput() {
+      if (authToggle.checked) {
+        authTokenArea.style.display = 'block';
+        authTokenInput.focus();
+        logToTerminal('[AUTH] Authorization enabled. Token will be used for authenticated endpoints.');
+      } else {
+        authTokenArea.style.display = 'none';
+        logToTerminal('[AUTH] Authorization disabled.');
+      }
+    }
 
     function applyPreset(url, swagger) {
       baseUrlInput.value = url;
@@ -649,10 +747,13 @@ Paste any public API or ngrok URL on the left, then click a test action.
     async function setTargetApiOnServer() {
       const baseUrl = baseUrlInput.value.trim();
       const openApiPath = openApiPathInput.value.trim();
+      const useAuth = authToggle ? authToggle.checked : false;
+      const token = (useAuth && authTokenInput) ? authTokenInput.value.trim() : "";
+
       const res = await fetch('/api/web/set-target', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ baseUrl, openApiPath })
+        body: JSON.stringify({ baseUrl, openApiPath, useAuth, token })
       });
       return await res.json();
     }
