@@ -616,10 +616,6 @@ public static class WebTerminalPage
         <button id="btnTestSuite" class="btn btn-primary" onclick="runTestSuite()">
           🧪 Generate & Run Test Suite
         </button>
-        <button id="btnDownloadPanel" class="btn btn-secondary" style="display:none; border-color:#06b6d4; color:#38bdf8; background:rgba(6,182,212,0.1);" onclick="downloadReport('md')">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-          <span>Download Test Report (.md)</span>
-        </button>
       </div>
 
       <!-- Claude Desktop / Cursor Config Section -->
@@ -664,10 +660,14 @@ public static class WebTerminalPage
           <button class="tab-btn active" id="tabTerminal" onclick="switchTab('terminal')">Live Console</button>
           <button class="tab-btn" id="tabReport" onclick="switchTab('report')">Structured Report</button>
         </div>
-        <div style="padding-right:0.75rem;">
+        <div style="padding-right:0.75rem; display:flex; gap:0.4rem; align-items:center;">
+          <button id="btnDownloadJsonTab" class="download-report-btn" style="display:none; border-color:#3b82f6; color:#60a5fa;" onclick="downloadReport('json')" title="Export full report as JSON">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <span>Download .JSON</span>
+          </button>
           <button id="btnDownloadReport" class="download-report-btn" style="display:none;" onclick="downloadReport('md')" title="Export full report as Markdown">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-            <span>Download Report (.md)</span>
+            <span>Download .MD</span>
           </button>
         </div>
       </div>
@@ -840,14 +840,14 @@ Paste any public API or ngrok URL on the left, then click a test action.
           renderMarkdownReport(result.summaryReport);
         }
 
-        // Reveal the download buttons on the control panel and terminal tabs
-        const btnPanel = document.getElementById('btnDownloadPanel');
-        if (btnPanel) btnPanel.style.display = 'flex';
+        // Reveal the download buttons on the terminal tabs
+        const btnTabJson = document.getElementById('btnDownloadJsonTab');
+        if (btnTabJson) btnTabJson.style.display = 'inline-flex';
 
         const btnTab = document.getElementById('btnDownloadReport');
         if (btnTab) btnTab.style.display = 'inline-flex';
 
-        logToTerminal(`\n\x1b[32m✔ Structured report ready! Use the 'Download Report' button to save as .md or .json.\x1b[0m`);
+        logToTerminal(`\n\x1b[32m✔ Structured report ready! Use the 'Download' buttons above to save as .json or .md.\x1b[0m`);
       } catch (err) {
         logToTerminal(`✖ [ERROR] Suite run failed: ${err.message}`);
       } finally {
@@ -891,13 +891,13 @@ Paste any public API or ngrok URL on the left, then click a test action.
             <div style="font-size:0.75rem; color:#94a3b8;">${statsText}</div>
           </div>
           <div style="display:flex; gap:0.5rem;">
-            <button class="download-report-btn" onclick="downloadReport('md')" title="Download as Markdown">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-              <span>Download .MD</span>
-            </button>
             <button class="download-report-btn" onclick="downloadReport('json')" style="border-color:#3b82f6; color:#60a5fa;" title="Download as JSON">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
               <span>Download .JSON</span>
+            </button>
+            <button class="download-report-btn" onclick="downloadReport('md')" title="Download as Markdown">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              <span>Download .MD</span>
             </button>
           </div>
         </div>
