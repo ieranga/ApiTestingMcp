@@ -110,13 +110,13 @@ public static class WebTerminalPage
 
     main {
       flex: 1;
-      max-width: 1400px;
+      max-width: 1600px;
       width: 100%;
       margin: 0 auto;
-      padding: 1.5rem;
+      padding: 1.25rem;
       display: grid;
-      grid-template-columns: 420px 1fr;
-      gap: 1.5rem;
+      grid-template-columns: 340px 1fr;
+      gap: 1.25rem;
       min-width: 0;
     }
     @media (max-width: 1024px) {
@@ -360,39 +360,54 @@ public static class WebTerminalPage
     .table-container {
       overflow-x: auto;
       margin: 1rem 0;
+      width: 100%;
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.78rem;
+      font-size: 0.8rem;
       background: #0b1120;
       border-radius: 6px;
       overflow: hidden;
     }
     th, td {
-      padding: 0.55rem 0.75rem;
+      padding: 0.55rem 0.65rem;
       border: 1px solid #1e293b;
       text-align: left;
+      vertical-align: middle;
     }
     th {
       background: #1e293b;
       color: #38bdf8;
       font-weight: 600;
+      white-space: nowrap;
     }
+    th:nth-child(1), td:nth-child(1) { white-space: nowrap; width: 70px; } /* ID */
+    th:nth-child(3), td:nth-child(3) { white-space: nowrap; width: 95px; } /* Category */
+    th:nth-child(4), td:nth-child(4) { white-space: nowrap; width: 65px; } /* Method */
+    th:nth-child(6), td:nth-child(6) { white-space: nowrap; text-align: center; width: 75px; } /* Expected */
+    th:nth-child(7), td:nth-child(7) { white-space: nowrap; text-align: center; width: 65px; } /* Actual */
+    th:nth-child(8), td:nth-child(8) { white-space: nowrap; text-align: center; width: 75px; } /* Result */
     tr:nth-child(even) { background: #070c18; }
     .badge-pass {
       color: #34d399;
       font-weight: 700;
       background: rgba(52, 211, 153, 0.1);
-      padding: 0.15rem 0.4rem;
+      padding: 0.2rem 0.5rem;
       border-radius: 4px;
+      display: inline-block;
+      white-space: nowrap;
+      letter-spacing: 0.05em;
     }
     .badge-fail {
       color: #f87171;
       font-weight: 700;
       background: rgba(248, 113, 113, 0.1);
-      padding: 0.15rem 0.4rem;
+      padding: 0.2rem 0.5rem;
       border-radius: 4px;
+      display: inline-block;
+      white-space: nowrap;
+      letter-spacing: 0.05em;
     }
 
     /* Config Modal / View */
@@ -543,7 +558,6 @@ public static class WebTerminalPage
 
   <header>
     <div class="logo-container">
-      <span class="logo-badge">MCP</span>
       <div class="title-group">
         <h1>ApiTestingMcp <span class="status-pill"><span class="status-dot"></span> Online</span></h1>
       </div>
@@ -594,15 +608,6 @@ public static class WebTerminalPage
           <div style="font-size:0.7rem; color:var(--accent-cyan); margin-top:0.3rem;">
             ✓ Token will be attached as Authorization: Bearer &lt;token&gt;
           </div>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Quick Test Presets</label>
-        <div class="preset-chips">
-          <span class="chip" onclick="applyPreset(window.location.origin + '/', '/swagger/v1/swagger.json')">⚡ Built-in Sample API</span>
-          <span class="chip" onclick="applyPreset('https://petstore.swagger.io', '/v2/swagger.json')">🐾 Swagger Petstore</span>
-          <span class="chip" onclick="applyPreset('https://dummyjson.com', '/docs')">📦 DummyJSON</span>
         </div>
       </div>
 

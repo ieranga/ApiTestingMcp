@@ -444,7 +444,7 @@ public class TestGeneratorService
             sb.AppendLine("> Please verify the target API is running and reachable, then re-run the test suite.\n");
         }
 
-        sb.AppendLine("| ID | Test Scenario | Category | Method | Status | Expected | Actual | Result |");
+        sb.AppendLine("| ID | Test Scenario | Category | Method | Endpoint | Expected | Actual | Result |");
         sb.AppendLine("|:---|:---|:---|:---|:---|:---|:---|:---|");
 
         foreach (var t in suite.TestResults)
