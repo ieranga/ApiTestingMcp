@@ -2,11 +2,30 @@ using System.Text.Json;
 using Microsoft.Extensions.AI;
 using ModelContextProtocol.Client;
 
-var transport = new HttpClientTransport(
-    new HttpClientTransportOptions
+// Launches the MCP server as a child process and talks to it over stdio,
+// exactly like Claude Desktop / Claude Code / Cursor do.
+// Override the server location with the MCP_SERVER_DLL environment variable.
+var serverDll = Environment.GetEnvironmentVariable("MCP_SERVER_DLL");
+if (string.IsNullOrWhiteSpace(serverDll))
+{
+    var configuration = AppContext.BaseDirectory.Contains($"{Path.DirectorySeparatorChar}Release{Path.DirectorySeparatorChar}")
+        ? "Release" : "Debug";
+    serverDll = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
+        "..", "..", "..", "..", "ApiTestingMcp.Server", "bin", configuration, "net9.0", "ApiTestingMcp.Server.dll"));
+}
+
+if (!File.Exists(serverDll))
+{
+    Console.WriteLine($"MCP server not found at '{serverDll}'. Build it first: dotnet build");
+    return;
+}
+
+var transport = new StdioClientTransport(
+    new StdioClientTransportOptions
     {
-        Endpoint = new Uri("https://apitestmcpapp.gentleglacier-67755979.southeastasia.azurecontainerapps.io/mcp"),
-        TransportMode = HttpTransportMode.StreamableHttp
+        Name = "ApiTestingMcp",
+        Command = "dotnet",
+        Arguments = [serverDll]
     });
 
 await using var client = await McpClient.CreateAsync(transport);
@@ -28,7 +47,7 @@ Console.WriteLine();
 
 string targetToTest = args.Length > 0 && !string.IsNullOrWhiteSpace(args[0])
     ? args[0].Trim()
-    : "https://apitestmcpapp.gentleglacier-67755979.southeastasia.azurecontainerapps.io/";
+    : "http://localhost:3001/";
 
 var setTargetTool = tools.FirstOrDefault(t => string.Equals(t.Name, "set_target_api", StringComparison.OrdinalIgnoreCase));
 var healthCheckTool = tools.FirstOrDefault(t => string.Equals(t.Name, "check_api_health", StringComparison.OrdinalIgnoreCase));

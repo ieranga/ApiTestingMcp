@@ -1,7 +1,11 @@
 {
   "mcpServers": {
     "api-tester": {
-      "serverUrl": "https://apitestmcpapp.gentleglacier-67755979.southeastasia.azurecontainerapps.io/mcp"
+      "command": "dotnet",
+      "args": ["./publish/ApiTestingMcp.Server.dll"],
+      "env": {
+        "TARGET_API_BASE_URL": "http://localhost:3001/"
+      }
     }
   }
 }
